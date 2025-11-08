@@ -37,7 +37,7 @@ jobs:
             echo "Not started yet. Waiting until $start_date."
             echo "continue=false" >> $GITHUB_OUTPUT
 
-          elif [[ "$today" > "$end_date" ]]; then
+          elif [[ "$today" >= "$end_date" ]]; then
             echo "3-week window complete. Workflow will now disable itself."
             echo "continue=false" >> $GITHUB_OUTPUT
           else
