@@ -1,0 +1,6 @@
+pythonenv/
+myenv/
+.env
+.vscode/
+__pycache__/
+tickers_data.csv
