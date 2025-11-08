@@ -149,7 +149,6 @@ def load_to_snowflake(rows, fieldnames):
                 row = {}
                 for k in fieldnames:
                     row[k] = t.get(k, None)
-                print(row)
                 transformed.append(row)
 
             if transformed:
@@ -161,22 +160,4 @@ def load_to_snowflake(rows, fieldnames):
 
 
 if __name__ == "__main__":
-    # Run immediately once, then schedule daily
     run_stock_job()
-
-    # When to run daily: read from env var DAILY_RUN_TIME in HH:MM (24-hour) format.
-    # Default: midnight
-    run_time = os.getenv("DAILY_RUN_TIME", "00:00")
-    print(f"Scheduling job to run once a day at {run_time} (local time)...")
-    try:
-        schedule.every().day.at(run_time).do(run_stock_job)
-    except Exception as e:
-        print(f"Invalid DAILY_RUN_TIME='{run_time}', falling back to once-per-day without specific time. Error: {e}")
-        schedule.every().day.do(run_stock_job)
-
-    try:
-        while True:
-            schedule.run_pending()
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Exiting scheduler")
