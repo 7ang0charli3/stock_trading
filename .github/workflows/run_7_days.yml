@@ -1,16 +1,20 @@
-name: Run Stock Job for 7 Days
+name: Run Stock Job at US Market Open (3 Weeks)
 
 on:
   schedule:
-    - cron: "0 11 * * *"  # runs every day at 11:00 AM UTC (4:30 PM India time)
-  workflow_dispatch:  # allow manual trigger from GitHub Actions tab
+    - cron: "30 14 * * 1-5"  # Runs at 2:30 PM UTC (9:30 AM ET), Monday–Friday only
+  workflow_dispatch:          # Allow manual trigger from GitHub Actions tab
+
+permissions:
+  actions: write   # Required for self-disabling
+  contents: read
 
 jobs:
   run-daily:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -18,23 +22,26 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Check if within 7-day window
+      - name: Check if within 3-week window
         id: check-date
         run: |
-          start_date="2025-11-08"  # include today
-          end_date=$(date -d "$start_date +7 days" +%Y-%m-%d)
+          start_date="2025-11-10"   # First US market open (Monday)
+          end_date=$(date -d "$start_date +21 days" +%Y-%m-%d)
           today=$(date -u +"%Y-%m-%d")
 
-          echo "Start: $start_date"
-          echo "End: $end_date"
+          echo "Start date: $start_date"
+          echo "End date: $end_date"
           echo "Today: $today"
 
-          # Compare lexicographically since format is YYYY-MM-DD
-          if [[ "$today" < "$start_date" || "$today" > "$end_date" ]]; then
-            echo "⏭️ Outside 7-day window. Skipping run."
+          if [[ "$today" < "$start_date" ]]; then
+            echo "Not started yet. Waiting until $start_date."
+            echo "continue=false" >> $GITHUB_OUTPUT
+
+          elif [[ "$today" > "$end_date" ]]; then
+            echo "3-week window complete. Workflow will now disable itself."
             echo "continue=false" >> $GITHUB_OUTPUT
           else
-            echo "🟢 Within 7-day window. Proceeding."
+            echo "Within 3-week window. Proceeding."
             echo "continue=true" >> $GITHUB_OUTPUT
           fi
 
@@ -54,3 +61,12 @@ jobs:
           SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
           SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
         run: python script.py
+
+      - name: Disable workflow after 3 weeks
+        if: steps.check-date.outputs.continue == 'false' && always()
+        run: |
+          echo "Disabling workflow now..."
+          curl -X PUT \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/run_market_open.yml/disable
